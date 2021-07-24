@@ -190,22 +190,15 @@ void client(SOCKET hClntSock, SOCKADDR_IN clntAddr, std::vector<std::thread*>* c
 
     char sql[1024];
 
-    send(hClntSock, "login : 1\nsign up : 0\n>", 24, 0); //send함수 호출을 통해서 연결된 클라이언트에 데이터를 전송
+    MYSQL_RES* result;
+    MYSQL_ROW row;
+    int fields;
+
     recv(hClntSock, &x, sizeof(char), 0);
+
     if (x == '1')
     {
-        MYSQL_RES* result;
-        MYSQL_ROW row;
-        int fields;
-
-        send(hClntSock, "id >", 5, 0);
-
-        /* 버퍼 제거 */
         recv(hClntSock, &x, sizeof(char), 0);
-        recv(hClntSock, &x, sizeof(char), 0);
-        recv(hClntSock, &x, sizeof(char), 0);
-        /* --------- */
-
         while (1)
         {
             if (recv(hClntSock, &x, sizeof(char), 0) == SOCKET_ERROR)
@@ -213,7 +206,7 @@ void client(SOCKET hClntSock, SOCKADDR_IN clntAddr, std::vector<std::thread*>* c
                 ErrorHandling("recv() error");
                 break;
             }
-            if (buffer.size() > 0 && *(buffer.end() - 1) == '\r' && x == '\n')
+            if (buffer.size() > 0 && x == '\0')
             {
                 for (int i = 0; i < (int)buffer.size(); i++)
                     id[i] = buffer[i];
@@ -224,8 +217,6 @@ void client(SOCKET hClntSock, SOCKADDR_IN clntAddr, std::vector<std::thread*>* c
             buffer.push_back(x);
         }
 
-        send(hClntSock, "password >", 11, 0);
-
         while (1)
         {
             if (recv(hClntSock, &x, sizeof(char), 0) == SOCKET_ERROR)
@@ -233,7 +224,7 @@ void client(SOCKET hClntSock, SOCKADDR_IN clntAddr, std::vector<std::thread*>* c
                 ErrorHandling("recv() error");
                 break;
             }
-            if (buffer.size() > 0 && *(buffer.end() - 1) == '\r' && x == '\n')
+            if (buffer.size() > 0 && x == '\0')
             {
                 for (int i = 0; i < (int)buffer.size(); i++)
                     password[i] = buffer[i];
@@ -290,14 +281,7 @@ void client(SOCKET hClntSock, SOCKADDR_IN clntAddr, std::vector<std::thread*>* c
     }
     else if (x == '0')
     {
-        send(hClntSock, "id >", 5, 0);
-
-        /* 버퍼 제거 */
         recv(hClntSock, &x, sizeof(char), 0);
-        recv(hClntSock, &x, sizeof(char), 0);
-        recv(hClntSock, &x, sizeof(char), 0);
-        /* --------- */
-
         while (1)
         {
             if (recv(hClntSock, &x, sizeof(char), 0) == SOCKET_ERROR)
@@ -305,7 +289,7 @@ void client(SOCKET hClntSock, SOCKADDR_IN clntAddr, std::vector<std::thread*>* c
                 ErrorHandling("recv() error");
                 break;
             }
-            if (buffer.size() > 0 && *(buffer.end() - 1) == '\r' && x == '\n')
+            if (buffer.size() > 0 && x == '\0')
             {
                 for (int i = 0; i < (int)buffer.size(); i++)
                     id[i] = buffer[i];
@@ -315,9 +299,6 @@ void client(SOCKET hClntSock, SOCKADDR_IN clntAddr, std::vector<std::thread*>* c
             }
             buffer.push_back(x);
         }
-
-        send(hClntSock, "password >", 11, 0);
-
         while (1)
         {
             if (recv(hClntSock, &x, sizeof(char), 0) == SOCKET_ERROR)
@@ -325,7 +306,7 @@ void client(SOCKET hClntSock, SOCKADDR_IN clntAddr, std::vector<std::thread*>* c
                 ErrorHandling("recv() error");
                 break;
             }
-            if (buffer.size() > 0 && *(buffer.end() - 1) == '\r' && x == '\n')
+            if (buffer.size() > 0 && x == '\0')
             {
                 for (int i = 0; i < (int)buffer.size(); i++)
                     password[i] = buffer[i];

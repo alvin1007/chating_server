@@ -6,12 +6,40 @@
 #include <vector>
 #include <iostream>
 #include <thread>
+#include <string>
+#include <conio.h>
+#include <iomanip>
+#include <sstream>
+#include <openssl/sha.h>
 
 #define BUFFERSIZE 1024
 
+struct ClientInform
+{
+    std::string id;
+    std::string password;
+};
+
+bool isRogin = false;
+bool isSignUp = false;
 bool end;
 
 void ErrorHandling(const char* message);
+
+std::string sha256(const std::string str)
+{
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, str.c_str(), str.size());
+    SHA256_Final(hash, &sha256);
+    std::stringstream ss;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+    {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    }
+    return ss.str();
+}
 
 void recvThread(SOCKET hSocket)
 {
@@ -38,27 +66,52 @@ void recvThread(SOCKET hSocket)
     }
 }
 
-void cinThread(SOCKET hSocket)
+void cinThread(SOCKET hSocket, ClientInform clientInformation)
 {
+    char id[100], password[100];
+    for (int i = 0; i < (int)clientInformation.id.size(); i++)
+        id[i] = clientInformation.id[i];
+    for (int i = 0; i < (int)clientInformation.password.size(); i++)
+        password[i] = clientInformation.password[i];
+    id[clientInformation.id.size()] = '\0';
+    password[clientInformation.password.size()] = '\0';
     end = false;
     while (1)
     {
-        char input[BUFFERSIZE];
-        std::cin >> input;
-        int size = strlen(input);
-        *(input + size + 1) = '\r';
-        *(input + size + 2) = '\n';
-        send(hSocket, input, size + 3, 0);
-        if (*input == 'e' && *(input + 1) == 'x' && *(input + 2) == 'i' && *(input + 3) == 't')
+        if (isRogin || isSignUp)
         {
-            end = true;
-            break;
+            if (isRogin)
+                send(hSocket, "1", 2, 0);
+            else
+                send(hSocket, "0", 2, 0);
+            send(hSocket, id, (int)strlen(id) + 1, 0);
+            send(hSocket, password, (int)strlen(password) + 1, 0);
+            isRogin = false;
+            isSignUp = false;
+        }
+        else 
+        {
+            char input[BUFFERSIZE];
+            std::cin >> input;
+            int size = (int)strlen(input);
+            *(input + size + 1) = '\r';
+            *(input + size + 2) = '\n';
+            send(hSocket, input, size + 3, 0);
+            if (*input == 'e' && *(input + 1) == 'x' && *(input + 2) == 'i' && *(input + 3) == 't')
+            {
+                end = true;
+                break;
+            }
         }
     }
 }
 
 int main(int argc, char* argv[])
 {
+    char ch;
+    int x;
+    std::string id, password;
+    ClientInform clientInformation;
     std::vector<std::thread*> threadlist;
     WSADATA wsaData;
     SOCKET hSocket;
@@ -66,9 +119,52 @@ int main(int argc, char* argv[])
 
     if (argc != 3)
     {
-        printf("Usage:%s <IP> <port>\n", argv[0]);
-        exit(1);
+        std::cout << "client.exe <IP> <PORT>";
+        return 0;
     }
+
+    std::cout << "login : 1\nsign up : 0\n>";
+    std::cin >> x;
+    if (x == 1)
+    {
+        std::cout << "id >";
+        std::cin >> id;
+        id[id.size()] = '\0';
+        std::cout << "password >";
+        while ((ch = _getch()) != 13)
+        {
+            password += ch;
+            std::cout << '*';
+        }
+        password[password.size()] = '\0';
+        std::cout << std::endl;
+        isRogin = true;
+    }
+    else if (x == 0)
+    {
+        std::cout << "id >";
+        std::cin >> id;
+        id[id.size()] = '\0';
+        std::cout << "password >";
+        while ((ch = _getch()) != 13)
+        {
+            password += ch;
+            std::cout << '*';
+        }
+        password[password.size()] = '\0';
+        std::cout << std::endl;
+        isSignUp = true;
+    }
+    else
+    {
+        std::cout << "error";
+        return 0;
+    }
+
+    clientInformation.id = id;
+    clientInformation.password = sha256(password);
+
+    password.clear();
 
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) //소켓 라이브러리를 초기화하고 있다
         ErrorHandling("WSAStartup() error!");
@@ -88,7 +184,7 @@ int main(int argc, char* argv[])
         ErrorHandling("connect() error!");
 
     threadlist.push_back(new std::thread(recvThread, hSocket));
-    threadlist.push_back(new std::thread(cinThread, hSocket));
+    threadlist.push_back(new std::thread(cinThread, hSocket, clientInformation));
 
     for (auto ptr = threadlist.begin(); ptr < threadlist.end(); ptr++)
     {
